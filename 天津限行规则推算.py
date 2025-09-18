@@ -45,5 +45,14 @@ calculateQuantity = 300
 # 运行函数
 output = calculate_rules(dateStart, dateEnd, rootRules, calculateQuantity)
 
-# 打印结果
-print(output)
+# 写入结果到txt文件
+with open('限行规则推算结果.txt', 'w', encoding='utf-8') as f:
+    for phase in output:
+        start_date, end_date, rule_list = phase
+        f.write(f"阶段：{start_date} 至 {end_date}\n")
+        for day_index, restricted_plates in enumerate(rule_list, start=1):
+            weekday_map = {1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五', 6: '周六', 7: '周日'}
+            f.write(f"  {weekday_map[day_index]}: 限行尾号 {restricted_plates}\n")
+        f.write("\n")
+
+print("结果已成功写入 '限行规则推算结果.txt' 文件")
