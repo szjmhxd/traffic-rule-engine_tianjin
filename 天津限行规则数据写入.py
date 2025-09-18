@@ -70,6 +70,9 @@ region = "天津"
 rules = calculate_rules(dateStart, dateEnd, rootRules, calculateQuantity)
 insert_statements = generate_insert_statements(region, rules)
 
-# 打印 SQL 语句
-for statement in insert_statements:
-    print(statement)
+# 写入SQL语句到txt文件
+with open('限行规则SQL语句.txt', 'w', encoding='utf-8') as f:
+    for statement in insert_statements:
+        f.write(statement + '\n')
+
+print("SQL语句已成功写入 '限行规则SQL语句.txt' 文件")
