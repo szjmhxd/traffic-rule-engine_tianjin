@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+
 def calculate_rules(dateStart, dateEnd, rootRules, calculateQuantity):
     # 定义一个结果列表
     result = []
@@ -23,11 +24,9 @@ def calculate_rules(dateStart, dateEnd, rootRules, calculateQuantity):
         next_rules = [current_rules[-1]] + current_rules[:-1]
 
         # 将阶段信息添加到结果中
-        result.append([
-            next_start.strftime("%Y-%m-%d"),
-            next_end.strftime("%Y-%m-%d"),
-            next_rules
-        ])
+        result.append(
+            [next_start.strftime("%Y-%m-%d"), next_end.strftime("%Y-%m-%d"), next_rules]
+        )
 
         # 更新当前阶段的信息
         current_start = next_start
@@ -35,6 +34,38 @@ def calculate_rules(dateStart, dateEnd, rootRules, calculateQuantity):
         current_rules = next_rules
 
     return result
+
+
+def filter_rules_by_date_range(all_rules, target_start_str, target_end_str):
+    """
+    从所有推算规则中筛选出指定时间段内的规则
+    """
+    # 将目标时间段转换为 datetime 对象
+    target_start = datetime.strptime(target_start_str, "%Y-%m-%d")
+    target_end = datetime.strptime(target_end_str, "%Y-%m-%d")
+
+    filtered_rules = []
+
+    # 遍历所有规则，筛选出与目标时间段有交集的规则
+    for phase in all_rules:
+        phase_start = datetime.strptime(phase[0], "%Y-%m-%d")
+        phase_end = datetime.strptime(phase[1], "%Y-%m-%d")
+
+        # 检查时间段是否有交集
+        if phase_end >= target_start and phase_start <= target_end:
+            # 计算实际有效的开始和结束日期
+            effective_start = max(phase_start, target_start).strftime("%Y-%m-%d")
+            effective_end = min(phase_end, target_end).strftime("%Y-%m-%d")
+
+            # 对于完全在目标时间段内的阶段，保留全部信息
+            if phase_start >= target_start and phase_end <= target_end:
+                filtered_rules.append(phase)
+            else:
+                # 对于部分重叠的阶段，只记录有效的日期范围
+                filtered_rules.append([effective_start, effective_end, phase[2]])
+
+    return filtered_rules
+
 
 def generate_insert_statements(region, rules):
     # 初始化 SQL 语句列表
@@ -54,25 +85,52 @@ def generate_insert_statements(region, rules):
 
     return sql_statements
 
-# 示例输入
+
+# 示例输入 - 基础推算参数
 # dateStart = "2024-04-01"
 # dateEnd =   "2024-06-30"
 # rootRules = ["5,0", "1,6", "2,7", "3,8", "4,9"]
 
 dateStart = "2022-07-04"
-dateEnd =   "2022-10-02"
-rootRules = ['2,7', '3,8', '4,9', '5,0', '1,6']
+dateEnd = "2022-10-02"
+rootRules = ["2,7", "3,8", "4,9", "5,0", "1,6"]
 
-calculateQuantity = 20 # 计算的阶段数量
+calculateQuantity = 20  # 计算的阶段数量
 region = "天津"
 
-# 运行函数
-rules = calculate_rules(dateStart, dateEnd, rootRules, calculateQuantity)
-insert_statements = generate_insert_statements(region, rules)
+# 目标时间段 - 用户可以修改为需要的时间段
+# target_start_date = "2023-01-01"
+# target_end_date = "2024-12-31"
+
+# # 通过input输入年份，计算整年时间范围
+# input_year = input("请输入需要查询的年份（如：2023）：")
+# target_start_date = f"{input_year}-01-01"
+# target_end_date = f"{input_year}-12-31"
+
+# 通过input输入起始年份和结束年份，计算多年份时间范围
+input_years = input("请输入需要查询的年份范围（如：2023-2025）：")
+start_year, end_year = input_years.split("-")
+target_start_date = f"{start_year}-01-01"
+target_end_date = f"{end_year}-12-31"
+
+# 运行函数 - 先推算所有规则
+all_rules = calculate_rules(dateStart, dateEnd, rootRules, calculateQuantity)
+
+# 筛选出目标时间段内的规则
+filtered_rules = filter_rules_by_date_range(
+    all_rules, target_start_date, target_end_date
+)
+
+# 基于筛选后的规则生成SQL语句
+insert_statements = generate_insert_statements(region, filtered_rules)
 
 # 写入SQL语句到txt文件
-with open('限行规则SQL语句.txt', 'w', encoding='utf-8') as f:
+output_file = f"限行规则SQL语句_{target_start_date}_{target_end_date}.txt"
+with open(output_file, "w", encoding="utf-8") as f:
     for statement in insert_statements:
-        f.write(statement + '\n')
+        f.write(statement + "\n")
 
-print("SQL语句已成功写入 '限行规则SQL语句.txt' 文件")
+print(
+    f"已成功生成 {target_start_date} 至 {target_end_date} 的限行规则SQL语句，并写入 '{output_file}' 文件"
+)
+print(f"共生成 {len(insert_statements)} 条SQL语句")
